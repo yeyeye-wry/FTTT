@@ -62,7 +62,7 @@ public class Hand {
 
     //显示手牌等级用 取出index 的level
     public int getLevelAt(int index){
-        if(index<0||index>=this.count)return -1;
+        if(this.head==null||index<0||index>=this.count)return -1;
         PieceNode cur=this.head;
         for(int i =0;i<index;i++){
             cur=cur.getNext();
