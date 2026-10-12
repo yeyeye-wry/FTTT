@@ -7,6 +7,18 @@ import com.laiyesheng.fttt.map.Owner;
 import com.laiyesheng.fttt.list.Hand;
 import com.laiyesheng.fttt.map.Cell;
 
+//actDropHand/actRecycle/actDevour 传了 hand 参数，
+// 而 actDropNew/actView 不传——建议统一从 game.getCurrentPlayer().getHand() 内部取，
+// 去掉参数，免得传错手牌。
+//M1 hasPiece(GameState, Owner)：配合 B4，扫棋盘看该玩家还有没有子。
+
+
+//吞噬没处理 handIdx<0（用新 Lv1 发起）：devourAlgorthm 直接 hand.removeAt(index)，handIdx<0 时
+// removeAt(-1) 返回 -1 → 等级算错。应：handIdx<0 时 mylevel=1 且不碰手牌；
+// 否则 mylevel=hand.removeAt(handIdx)。
+
+//我记得我一个null没有做防备
+
 public class ActionEngine {
 
     //ap
@@ -25,10 +37,10 @@ public class ActionEngine {
     public static final int ERR_OUT_VISION = -2;// 不在视野内（例外：场上自己0子的时候不受这条限制）
     public static final int ERR_NOT_EMPTY = -3;// 格子已有棋子，不是空格
     public static final int ERR_HAND_INDEX = -4; // 手牌idx越界（actDropHand专用）
-    public static final int ERR_NOT_OWNER = -4; // 改格子没有自己的棋子 无法回收 /不是自己的格子
-    public static final int ERR_LOOK_SHE=-5;//该格子不是对方的格子
-    public static final int ERR_LOOK_REV=-6;//配合SHE使用 虽然这个是对方的格子 但是已经揭示了，不能重复揭示
-    public static final int ERR_NOT_ADJA=-7;//因为不相邻无法合成
+    public static final int ERR_NOT_OWNER = -5; // 改格子没有自己的棋子 无法回收 /不是自己的格子
+    public static final int ERR_LOOK_SHE=-6;//该格子不是对方的格子
+    public static final int ERR_LOOK_REV=-7;//配合SHE使用 虽然这个是对方的格子 但是已经揭示了，不能重复揭示
+    public static final int ERR_NOT_ADJA=-8;//因为不相邻无法合成
     public static final int ERR_SYN_FAIL=-8;//因为等级不同无法合成
     public static final int ERR_OTHER=-10;//其他错误
 
@@ -94,9 +106,9 @@ public class ActionEngine {
             return 0;
         }//回收
 
-        if(!this.isEnoughAp(game,COST_DROP))return ERR_AP_NOT_ENOUGH;
+        if(!this.isEnoughAp(game,COST_RECYCLE))return ERR_AP_NOT_ENOUGH;
         if(!valueInVision)return ERR_OUT_VISION;
-        if(!isMyCell(game,r,c))return ERR_NOT_OWNER;//-5
+        if(!isMyCell(game,r,c))return ERR_NOT_OWNER;//-6
 
         return ERR_OTHER;//-10
     }
@@ -203,8 +215,9 @@ public class ActionEngine {
             int  res= this.synthesizeAlgorithm(game.getCell(r1,c1),game.getCell(r2,c2));
             PlayerState player=game.getCurrentPlayer();
             player.setAp(player.getAp()+ADD_SYNTH);
+            return res;
         }
-        if(!this.isHerCell(game,r1,c1)||!this.isMyCell(game,r2,c2))return ERR_NOT_OWNER;
+        if(!this.isMyCell(game,r1,c1)||!this.isMyCell(game,r2,c2))return ERR_NOT_OWNER;
         if(!game.isAdjacent(r1,c1,r2,c2))return ERR_NOT_ADJA;
         return ERR_OTHER;
     }
@@ -213,7 +226,7 @@ public class ActionEngine {
         int levelOne=cellOne.getLevel();
         int levelTwo=cellTwo.getLevel();
         if(levelOne==levelTwo){ //满足同等级 跨级升级
-            int level=levelOne*2;
+            int level=levelOne+2;//是+2 不是*2
             if(level>10) level=10;
             cellTwo.clear();
             return 0;
@@ -224,16 +237,22 @@ public class ActionEngine {
     }//synthesizeAlgorthm
 
     // 结束回合 turn+1 清空ap 给对方回ap 切换current 重置回收/预警的boolean
-    public void actEndTurn(GameState game){
+    public void actEndTurn(GameState game){//这里的trun是双方总共的trun 如果不修改的话
         game.setTurn(game.getTurn()+1);//从0开始 0 作为空局 用来给双方布下第一个棋子 第一个棋子不消耗ap 在第0轮实现
         PlayerState myplayer=game.getCurrentPlayer();
         myplayer.setAp(0);
-        if(game.getTurn()!=1)game.getHerPlayer().setAp(AP_PER_TURN);
-        else if(game.getCurrent()==Owner.BLACK){
-            game.getHerPlayer().setAp(BLACK_FIRST_AP);
-        }//默认黑棋为先首方 为平衡首回合ap为
+
+        //重置flag 换current
         myplayer.resetTurnFlags();//重置两个flag //1 BLACK 2 WHITE
-        game.setCurrent(game.getCurrent().ordinal()==1?Owner.WHITE:Owner.WHITE);
+        Owner next=game.getCurrent().ordinal()==1?Owner.WHITE:Owner.BLACK;
+        game.setCurrent(next);
+
+        int ap = (next==Owner.BLACK && !game.isBlackFirstDone()) ? BLACK_FIRST_AP : AP_PER_TURN;
+        game.getPlayer(next).setAp(ap);
+        if(next==Owner.BLACK) game.setBlackFirstDone(true);
+        //默认黑棋为先首方 为平衡首回合ap为
+
+
     }
 
 

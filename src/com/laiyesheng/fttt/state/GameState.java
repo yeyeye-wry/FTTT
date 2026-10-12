@@ -4,6 +4,7 @@ import com.laiyesheng.fttt.map.Cell;
 import com.laiyesheng.fttt.map.Owner;
 import com.laiyesheng.fttt.list.Log;
 
+//或许加个手牌 还是我之前忘记写了？
 public class GameState {
     static final int BOARD_N = 11;//忘记加public 那就不加了
 
@@ -17,6 +18,7 @@ public class GameState {
     private  int difficulty;//人机模式选择难度 0/1/2
     private int mode;//0=双人 1=人机
     private Log log;//日志
+    private boolean blackFirstDone=false;//黑第一回合do了吗
 
     public GameState(int mode,int difficulty,int winScore){
         this.board=new Cell[BOARD_N][BOARD_N];//11*11 的cell //注意此时是121个
@@ -109,9 +111,16 @@ public class GameState {
     public boolean isAdjacent(int r1,int c1,int r2,int c2){
         int dr=Math.abs(r1-r2);
         int dc=Math.abs(c1-c2);
-        return (dr==1&&dc==0||(dr==0&&dc==1));//相邻
+        return (dr==1&&dc==0||(dr==0&&dc==1));//相邻 //以及排除的同格子了
     }
 
+    //blackFirstDone
+    public boolean isBlackFirstDone(){
+        return this.blackFirstDone;
+    }
+    public void setBlackFirstDone(boolean done){
+        this.blackFirstDone=done;
+    }
 
 
 }
