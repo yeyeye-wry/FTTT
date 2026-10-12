@@ -70,6 +70,15 @@ public class Hand {
         return cur.getLevel();
     }
 
+    public PieceNode getNode(int index){
+        if(this.head==null||index<0||index>=this.count)return null;//注意外界先判别
+        PieceNode cur=this.head;
+        for(int i =0;i<index;i++){
+            cur=cur.getNext();
+        }
+        return cur;
+    }
+
     //
     public boolean isEmpty(){
         return this.head==null;

@@ -106,6 +106,12 @@ public class GameState {
         return this.players[idx+1%2];
     }
 
+    public boolean isAdjacent(int r1,int c1,int r2,int c2){
+        int dr=Math.abs(r1-r2);
+        int dc=Math.abs(c1-c2);
+        return (dr==1&&dc==0||(dr==0&&dc==1));//相邻
+    }
+
 
 
 }
