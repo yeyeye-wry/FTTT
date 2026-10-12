@@ -5,6 +5,7 @@ public class VisionEngine {
     public static final int VIS_R=2;//视野半径
     // r-2 r+2 c-2 c+2 构成5*5视野
 
+
     /**
      * 计算玩家视野，填充vis二维boolean数组 能否看见
      * @param game GameState 游戏完整的状态

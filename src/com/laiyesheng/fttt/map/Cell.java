@@ -43,6 +43,7 @@ public class Cell {
         this.revealed=false;
     }
 
+
     //isEmpty
     public  boolean isEmpty() {
     return this.owner==Owner.EMPTY;

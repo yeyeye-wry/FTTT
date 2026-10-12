@@ -75,6 +75,10 @@ public class Hand {
         return this.head==null;
     }
 
+    public static boolean aviailableindex(int index){
+        return index>=0&&index<this.count&&this.head!=null;
+    }
+
     @Override
     public String toString() {
         StringBuilder sb = new StringBuilder();

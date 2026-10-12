@@ -97,5 +97,15 @@ public class GameState {
         return this.players[this.pidx(owner)];
     }
 
+    public PlayerState getCurrentPlayer(){
+        return this.getPlayer(this.getCurrent());
+    }
+
+    public PlayerState getHerPlayer(){
+        int idx = pidx(this.getCurrent());
+        return this.players[idx+1%2];
+    }
+
+
 
 }
