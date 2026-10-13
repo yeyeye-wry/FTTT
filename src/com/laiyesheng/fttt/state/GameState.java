@@ -37,6 +37,8 @@ public class GameState {
         this.difficulty=difficulty;
         this.winScore=winScore;
         this.log=new Log();
+        this.phase=1;//v1:没有在这里初始话phase
+        this.turn=1;//从1开始计数
 
     }
 
@@ -115,13 +117,13 @@ public class GameState {
 
     public PlayerState getHerPlayer(){
         int idx = pidx(this.getCurrent());
-        return this.players[idx+1%2];
+        return this.players[(idx+1)%2];
     }
 
     public boolean isAdjacent(int r1,int c1,int r2,int c2){
         int dr=Math.abs(r1-r2);
         int dc=Math.abs(c1-c2);
-        return (dr==1&&dc==0||(dr==0&&dc==1));//相邻 //以及排除的同格子了
+        return (dr<=1&&dc<=1&&!(dr==0&&dc==0));//相邻 //以及排除的同格子了
     }
 
     //blackFirstDone
