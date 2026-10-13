@@ -7,7 +7,7 @@ import com.laiyesheng.fttt.map.Cell;
 import java.util.Random;
 
 public class WarningEngine {
-    public  static void check_waring(GameState game,Owner player){
+    public  static void cheekWarning(GameState game,Owner player){
         if(game.getPhase()!=1)return;
         if(game.getPlayer(player).isWarningUsedThisTurn())return;
         Owner opp=player==Owner.BLACK?Owner.WHITE:Owner.BLACK;

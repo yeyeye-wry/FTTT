@@ -42,6 +42,22 @@ public class GameState {
 
     }
 
+    //mode
+    public int getMode(){
+        return this.mode;
+    }
+    public void setMode(int mode){
+        this.mode=mode;
+    }
+
+    //difficulty
+    public int getDifficulty(){
+        return this.difficulty;
+    }
+    public void setDifficulty(int difficulty){
+        this.difficulty=difficulty;
+    }
+    //winScore
     public  int getWinScore(){
         return this.winScore;
     }
@@ -134,5 +150,27 @@ public class GameState {
         this.blackFirstDone=done;
     }
 
+    public GameState GameStateCopy(){
+        //深拷贝一个Game
 
+        GameState newgame=new GameState(this.mode,this.difficulty,this.winScore);
+        // phase等 可以直接赋值
+        newgame.setPhase(this.getPhase());
+        newgame.setWinner(this.getWinner());
+        newgame.setCurrent(this.getCurrent());
+        newgame.setTurn(this.getTurn());
+        newgame.setBlackFirstDone(this.isBlackFirstDone());
+        //board
+
+        int boardSize=this.getBoardSize();
+        for(int r=0;r<boardSize;r++){
+            for(int c=0;c<boardSize;c++){
+                newgame.getBoard()[r][c]=this.getCell(r,c).copyCell();
+                //给board[][] copy出来
+            }
+        }
+
+        //hand
+        return newgame;
+    }
 }

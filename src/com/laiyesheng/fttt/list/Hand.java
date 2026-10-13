@@ -88,6 +88,17 @@ public class Hand {
         return index>=0&&index<this.count&&this.head!=null;
     }
 
+    public Hand handCopy(){
+        Hand newhand=new Hand();
+        PieceNode newNode=newhand.head;//之前有一个命名错把Piece写成Cell了
+        PieceNode sourceNode=this.head;//要一个个节点的copy啊
+        //while(sourceNode.getNext()!=null){
+
+        //}
+        //TODO
+        return newhand;
+    }
+
     @Override
     public String toString() {
         StringBuilder sb = new StringBuilder();

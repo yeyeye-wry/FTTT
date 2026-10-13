@@ -61,7 +61,7 @@ public class ActionEngine {
             modifyCellLevel(game,r,c,1);
             this.modifyPlayerAp(game.getPlayer(game.getCurrent()),-COST_DROP);
             Score.awardScores(game,game.getCurrent());
-            WarningEngine.check_waring(game,game.getCurrent());
+            WarningEngine.cheekWarning(game,game.getCurrent());
             return OK;
         }
         if(!this.isEnoughAp(game,COST_DROP))return ERR_AP_NOT_ENOUGH;
@@ -103,7 +103,7 @@ public class ActionEngine {
             modifyCellLevel(game,r,c,hand.removeAt(index));//removeAt返回-1为越界，但是还是在这里保障吧
             this.modifyPlayerAp(game.getPlayer(game.getCurrent()),-COST_DROP);
             Score.awardScores(game,game.getCurrent());
-            WarningEngine.check_waring(game,game.getCurrent());
+            WarningEngine.cheekWarning(game,game.getCurrent());
             return OK;
         }//下棋！
         if(!hand.availableIndex(index))return ERR_HAND_INDEX;
@@ -129,7 +129,7 @@ public class ActionEngine {
             game.getCell(r,c).clear();//回收 this.owner=Owner.EMPTY;this.level=0;this.revealed=false;
             this.modifyPlayerAp(game.getPlayer(game.getCurrent()),-COST_RECYCLE);
             game.getCurrentPlayer().setRecycleThisTurn(true);
-            WarningEngine.check_waring(game,game.getCurrent());
+            WarningEngine.cheekWarning(game,game.getCurrent());
             return OK;
         }//回收
 
@@ -180,7 +180,7 @@ public class ActionEngine {
             this.modifyPlayerAp(game.getPlayer(game.getCurrent()),-COST_DEVOUR);
             this.devourAlgorthm(game,mylevel,game.getCell(r,c));//decour 完成吞噬操作
             Score.awardScores(game,game.getCurrent());
-            WarningEngine.check_waring(game,game.getCurrent());
+            WarningEngine.cheekWarning(game,game.getCurrent());
             return OK;
         }
         if(!this.isEnoughAp(game,COST_DEVOUR))return ERR_AP_NOT_ENOUGH;
@@ -263,7 +263,7 @@ public class ActionEngine {
 
                 player.setAp(player.getAp()+ADD_SYNTH);//v1:没有res==OK 让等级不同无法合成的情况也加ap了
                 Score.awardScores(game,game.getCurrent());
-                WarningEngine.check_waring(game,game.getCurrent());
+                WarningEngine.cheekWarning(game,game.getCurrent());
             }
             return res;
         }

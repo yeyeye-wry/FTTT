@@ -49,6 +49,13 @@ public class Cell {
     return this.owner==Owner.EMPTY;
     }
 
+    public  Cell copyCell(){
+        Cell newCell=new Cell();
+        newCell.setRevealed(this.getRevealed());
+        newCell.setOwner(this.getOwner());
+        newCell.setLevel(this.getLevel());
+        return newCell;
+    }
     @Override
     public String toString() {
         // owner：EMPTY / BLACK / WHITE，level等级，revealed是否揭开
