@@ -5,7 +5,7 @@ import com.laiyesheng.fttt.state.GameState;
 import com.laiyesheng.fttt.state.PlayerState;
 import com.laiyesheng.fttt.list.Hand;
 import com.laiyesheng.fttt.map.Cell;
-
+import com.laiyesheng.fttt.rule.Score;
 
 
 // 而 actDropNew/actView 不传——建议统一从 game.getCurrentPlayer().getHand() 内部取，
@@ -61,7 +61,7 @@ public class ActionEngine {
             modifyCellOwner(game,game.getCurrent(),r,c);
             modifyCellLevel(game,r,c,1);
             this.modifyPlayerAp(game.getPlayer(game.getCurrent()),-COST_DROP);
-
+            Score.awardScores(game,game.getCurrent());
             return OK;
         }
         if(!this.isEnoughAp(game,COST_DROP))return ERR_AP_NOT_ENOUGH;
@@ -102,6 +102,7 @@ public class ActionEngine {
             modifyCellOwner(game,game.getCurrent(),r,c);
             modifyCellLevel(game,r,c,hand.removeAt(index));//removeAt返回-1为越界，但是还是在这里保障吧
             this.modifyPlayerAp(game.getPlayer(game.getCurrent()),-COST_DROP);
+            Score.awardScores(game,game.getCurrent());
             return OK;
         }//下棋！
         if(!hand.availableIndex(index))return ERR_HAND_INDEX;
@@ -176,7 +177,7 @@ public class ActionEngine {
             //
             this.modifyPlayerAp(game.getPlayer(game.getCurrent()),-COST_DEVOUR);
             this.devourAlgorthm(game,mylevel,game.getCell(r,c));//decour 完成吞噬操作
-
+            Score.awardScores(game,game.getCurrent());
             return OK;
         }
         if(!this.isEnoughAp(game,COST_DEVOUR))return ERR_AP_NOT_ENOUGH;
@@ -255,7 +256,11 @@ public class ActionEngine {
         if(this.isMyCell(game,r1, c1)&&this.isMyCell(game,r2,c2)&&game.isAdjacent(r1, c1, r2, c2)) {
             int  res= this.synthesizeAlgorithm(game.getCell(r1,c1),game.getCell(r2,c2));
             PlayerState player=game.getCurrentPlayer();
-            if(res==OK)player.setAp(player.getAp()+ADD_SYNTH);//v1:没有res==OK 让等级不同无法合成的情况也加ap了
+            if(res==OK){
+
+                player.setAp(player.getAp()+ADD_SYNTH);//v1:没有res==OK 让等级不同无法合成的情况也加ap了
+                Score.awardScores(game,game.getCurrent());
+            }
             return res;
         }
         if(!this.isMyCell(game,r1,c1)||!this.isMyCell(game,r2,c2))return ERR_NOT_OWNER;
