@@ -7,11 +7,7 @@ import com.laiyesheng.fttt.map.Cell;
 import java.util.Random;
 
 public class WarningEngine {
-
-    private static final Random RAND = new Random();//用在checkWaring
-
-    public  static void checkWarning(GameState game,Owner player){
-
+    public  static void check_waring(GameState game,Owner player){
         if(game.getPhase()!=1)return;
         if(game.getPlayer(player).isWarningUsedThisTurn())return;
         Owner opp=player==Owner.BLACK?Owner.WHITE:Owner.BLACK;
@@ -48,23 +44,25 @@ public class WarningEngine {
                             emptyIdx=k;
                         }
 
+                        if(oppCount==4&&emptyIdx>=0&&inVis==1){
+                            Random rand=new Random();
+                            int pick=rand.nextInt(oc);//oc=4
+                            int pr=oppCells[pick][0];
+                            int pc=oppCells[pick][1];
+
+                            //揭示 完成waring
+                            game.getCell(pr,pc).setRevealed(true);
+                            game.getPlayer(player).setWarningUsedThisTurn(true);
+                            //!
+                            return;
+
+                        }//连城四子，其中至少一子可见
                     }
-                    if(oppCount==4&&emptyIdx>=0&&inVis==1){
-                        //Random rand=new Random();
-                        int pick=RAND.nextInt(oc);//oc=4
-                        int pr=oppCells[pick][0];
-                        int pc=oppCells[pick][1];
 
-                        //揭示 完成waring
-                        game.getCell(pr,pc).setRevealed(true);
-                        game.getPlayer(player).setWarningUsedThisTurn(true);
-                        //!
-                        return;
-
-                    }//连城四子，其中至少一子可见
                 }
             }
         }
+
 
 
     }
