@@ -21,7 +21,7 @@ public class VisionEngine {
             for(int c=0;c<n;c++){
                 if(game.getCell(r,c).getOwner()==player){
                     for(int dr=-VIS_R;dr<=VIS_R;dr++){
-                        for(int dc=-VIS_R;dc<=VIS_R;dr++){
+                        for(int dc=-VIS_R;dc<=VIS_R;dc++){
                             int nr=r+dr;
                             int nc=c+dc;
                             if(nr>=0&&nr<n&&nc>=0&&nc<n){//注意数组越界

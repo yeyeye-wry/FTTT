@@ -3,18 +3,19 @@ import com.laiyesheng.fttt.list.PieceNode;
 import com.laiyesheng.fttt.map.Owner;
 import com.laiyesheng.fttt.state.GameState;
 import com.laiyesheng.fttt.state.PlayerState;
-import com.laiyesheng.fttt.map.Owner;
 import com.laiyesheng.fttt.list.Hand;
 import com.laiyesheng.fttt.map.Cell;
 
-//actDropHand/actRecycle/actDevour 传了 hand 参数，
+
+
 // 而 actDropNew/actView 不传——建议统一从 game.getCurrentPlayer().getHand() 内部取，
-// 去掉参数，免得传错手牌。
-//M1 hasPiece(GameState, Owner)：配合 B4，扫棋盘看该玩家还有没有子。
+// 去掉参数，免得传错手牌。  减少不必要的参数传入
+//M1 hasPiece(GameState, Owner)：配合 B4，扫棋盘看该玩家还有没有子。 在无子情况下可以下子
+
 
 
 //吞噬没处理 handIdx<0（用新 Lv1 发起）：devourAlgorthm 直接 hand.removeAt(index)，handIdx<0 时
-// removeAt(-1) 返回 -1 → 等级算错。应：handIdx<0 时 mylevel=1 且不碰手牌；
+// removeAt(-1) 返回 -1 → 等级算错。应：handIdx<0 时 mylevel=1 且不碰手牌；->直接抛出异常了
 // 否则 mylevel=hand.removeAt(handIdx)。
 
 //我记得我一个null没有做防备
@@ -41,8 +42,9 @@ public class ActionEngine {
     public static final int ERR_LOOK_SHE=-6;//该格子不是对方的格子
     public static final int ERR_LOOK_REV=-7;//配合SHE使用 虽然这个是对方的格子 但是已经揭示了，不能重复揭示
     public static final int ERR_NOT_ADJA=-8;//因为不相邻无法合成
-    public static final int ERR_SYN_FAIL=-8;//因为等级不同无法合成
+    public static final int ERR_SYN_FAIL=-9;//因为等级不同无法合成
     public static final int ERR_OTHER=-10;//其他错误
+    public static final int ERR_CELL=-11;//无法获得Cell
 
     /**
      *
@@ -52,37 +54,57 @@ public class ActionEngine {
      * @return 0/1
      */
     public int actDropNew(GameState game,int r,int c){
+        if(!isValidCell(game,r,c))return ERR_CELL;
         boolean valueInVision=VisionEngine.inVision(game,game.getCurrent(),r,c);//这个方法两次运行，尽量减少调用；
-        if(this.isEnoughAp(game,COST_DROP)&&valueInVision&&this.isEmptyCell(game,r,c)){
+        boolean isNotCell=!ishasCell(game,game.getCurrent());
+        if(this.isEnoughAp(game,COST_DROP)&&(valueInVision||isNotCell)&&this.isEmptyCell(game,r,c)){
             modifyCellOwner(game,game.getCurrent(),r,c);
             modifyCellLevel(game,r,c,1);
             this.modifyPlayerAp(game.getPlayer(game.getCurrent()),-COST_DROP);
-            return 0;
+
+            return OK;
         }
         if(!this.isEnoughAp(game,COST_DROP))return ERR_AP_NOT_ENOUGH;
         if(!valueInVision)return ERR_OUT_VISION;
         if(!this.isEmptyCell(game,r,c))return ERR_NOT_EMPTY;
         return ERR_OTHER;
     }//actDropNew
+     //vision 1 没有处理棋盘上无子的情况
+
+    public boolean ishasCell(GameState game,Owner current){
+        Cell[][] board=game.getBoard();
+        int boardSize=game.getBoardSize();
+        for(int x=0;x<boardSize;x++){
+            for(int y=0;y<boardSize;y++){
+                Cell cell=board[x][y];
+                if(cell!=null&&cell.getOwner()==current){
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
 
     /**
      * act：下手牌
-     * @param game 游戏整体
-     * @param hand 手牌
+     * @param game 游戏整体 包括玩家和棋盘等等
      * @param r 行
      * @param c 列
      * @param index 手牌序号
      * @return int类型 错误类别
      */
-    public int actDropHand(GameState game,Hand hand,int r,int c,int index){
+    public int actDropHand(GameState game,int r,int c,int index){
+        if(!isValidCell(game,r,c))return ERR_CELL;
+        Hand hand=game.getCurrentPlayer().getHand();
         boolean valueInVision=VisionEngine.inVision(game,game.getCurrent(),r,c);//这个方法两次运行，尽量减少调用；
-        if(Hand.aviailableindex(index)&&this.isEnoughAp(game,COST_DROP)&&valueInVision&&this.isEmptyCell(game,r,c)){
+        boolean isNotCell=!ishasCell(game,game.getCurrent());
+        if(hand.availableIndex(index)&&this.isEnoughAp(game,COST_DROP)&&(valueInVision||isNotCell)&&this.isEmptyCell(game,r,c)){
             modifyCellOwner(game,game.getCurrent(),r,c);
             modifyCellLevel(game,r,c,hand.removeAt(index));//removeAt返回-1为越界，但是还是在这里保障吧
             this.modifyPlayerAp(game.getPlayer(game.getCurrent()),-COST_DROP);
-            return 0;
+            return OK;
         }//下棋！
-        if(!Hand.aviailableindex(index))return ERR_HAND_INDEX;
+        if(!hand.availableIndex(index))return ERR_HAND_INDEX;
         if(!this.isEnoughAp(game,COST_DROP))return ERR_AP_NOT_ENOUGH;
         if(!valueInVision)return ERR_OUT_VISION;
         if(!this.isEmptyCell(game,r,c))return ERR_NOT_EMPTY;
@@ -92,18 +114,20 @@ public class ActionEngine {
     /**
      * 回收棋子 变为手牌
      * @param game 游戏
-     * @param hand 手牌
      * @param r 行
      * @param c 列
      * @return 错误类型
      */
-    public int actRecycle(GameState game,Hand hand,int r,int c){
+    public int actRecycle(GameState game,int r,int c){
+        if(!isValidCell(game,r,c))return ERR_CELL;
+        Hand hand=game.getCurrentPlayer().getHand();
         boolean valueInVision=VisionEngine.inVision(game,game.getCurrent(),r,c);//这个方法两次运行，尽量减少调用；
         if(this.isEnoughAp(game,COST_RECYCLE)&&valueInVision&&this.isMyCell(game,r,c)&&!game.getCurrentPlayer().isRecycleThisTurn()){
             hand.add(game.getCell(r,c).getLevel());
             game.getCell(r,c).clear();//回收 this.owner=Owner.EMPTY;this.level=0;this.revealed=false;
             this.modifyPlayerAp(game.getPlayer(game.getCurrent()),-COST_RECYCLE);
-            return 0;
+            game.getCurrentPlayer().setRecycleThisTurn(true);
+            return OK;
         }//回收
 
         if(!this.isEnoughAp(game,COST_RECYCLE))return ERR_AP_NOT_ENOUGH;
@@ -121,11 +145,12 @@ public class ActionEngine {
      * @return 错误类型
      */
     public int actView(GameState game,int r,int c){
+        if(!isValidCell(game,r,c))return ERR_CELL;
         boolean valueInVision=VisionEngine.inVision(game,game.getCurrent(),r,c);//这个方法两次运行，尽量减少调用；
         if(this.isEnoughAp(game,COST_VIEW)&&valueInVision&&!game.getCell(r,c).getRevealed()&&this.isHerCell(game,r,c)){
             game.getCell(r,c).setRevealed(true);
             this.modifyPlayerAp(game.getPlayer(game.getCurrent()),-COST_VIEW);
-            return 0;
+            return OK;
         }
         if(!isEnoughAp(game,COST_VIEW))return ERR_AP_NOT_ENOUGH;//没有点数最优先
         if(!valueInVision)return ERR_OUT_VISION;//没有视野
@@ -134,13 +159,25 @@ public class ActionEngine {
         return ERR_OTHER;
     }
 
-    public int  actDevour(GameState game,Hand hand,int r,int c,int handIdx){
+    public int  actDevour(GameState game,int r,int c,int handIdx){
+        if(!isValidCell(game,r,c))return ERR_CELL;
 
         boolean valueInVision=VisionEngine.inVision(game,game.getCurrent(),r,c);
         if(this.isEnoughAp(game,COST_DEVOUR)&&valueInVision&&this.isHerCell(game,r,c)){
-            this.devourAlgorthm(game,hand,handIdx,game.getCell(r,c));//decour 完成吞噬操作
+
+            //决定用手牌还是新棋子
+            int mylevel;
+            if(handIdx<0)mylevel=1; //不东手牌了
+            else {
+                Hand hand = game.getCurrentPlayer().getHand();
+                mylevel = hand.removeAt(handIdx);
+                if (mylevel == -1) return ERR_HAND_INDEX;
+            }
+            //
             this.modifyPlayerAp(game.getPlayer(game.getCurrent()),-COST_DEVOUR);
-            return 0;
+            this.devourAlgorthm(game,mylevel,game.getCell(r,c));//decour 完成吞噬操作
+
+            return OK;
         }
         if(!this.isEnoughAp(game,COST_DEVOUR))return ERR_AP_NOT_ENOUGH;
         if(!valueInVision)return ERR_OUT_VISION;
@@ -148,9 +185,9 @@ public class ActionEngine {
         return ERR_OTHER;
     }
 
-    private void devourAlgorthm(GameState game,Hand hand,int index, Cell herCell){
+    private void devourAlgorthm(GameState game,int mylevel, Cell herCell){
+       //v1:对越界和传入参数没有决定好
 
-        int mylevel=hand.removeAt(index);
         int herlevel=herCell.getLevel();
         if(mylevel==herlevel) {
             //herCell.setOwner(Owner.EMPTY);//抵消
@@ -176,6 +213,7 @@ public class ActionEngine {
         }else{//吞噬失败/养肥对方玩法
                 //不变 无影响？ 都是养肥了要不还是加点玩法吧 分两档升级 加一分或者两分
                 herlevel+=this.addlevel(herlevel,mylevel);
+                if(herlevel>10) herlevel=10;//v1:忘记加这个了
                 herCell.setLevel(herlevel);//全新养肥玩法，简洁了不少
         }
     }//这里不做对等级的保障
@@ -211,10 +249,13 @@ public class ActionEngine {
      */
     public int actSynthesize(GameState game,int r1,int c1,int r2,int c2){
         //COST_SYNTH 是0
+        if(!isValidCell(game,r1,c1))return ERR_CELL;
+        if(!isValidCell(game,r2,c2))return ERR_CELL;
+
         if(this.isMyCell(game,r1, c1)&&this.isMyCell(game,r2,c2)&&game.isAdjacent(r1, c1, r2, c2)) {
             int  res= this.synthesizeAlgorithm(game.getCell(r1,c1),game.getCell(r2,c2));
             PlayerState player=game.getCurrentPlayer();
-            player.setAp(player.getAp()+ADD_SYNTH);
+            if(res==OK)player.setAp(player.getAp()+ADD_SYNTH);//v1:没有res==OK 让等级不同无法合成的情况也加ap了
             return res;
         }
         if(!this.isMyCell(game,r1,c1)||!this.isMyCell(game,r2,c2))return ERR_NOT_OWNER;
@@ -228,8 +269,10 @@ public class ActionEngine {
         if(levelOne==levelTwo){ //满足同等级 跨级升级
             int level=levelOne+2;//是+2 不是*2
             if(level>10) level=10;
+            cellOne.setLevel(level);
             cellTwo.clear();
-            return 0;
+
+            return OK;
         }else{
          //不同等级
             return ERR_SYN_FAIL;
@@ -246,10 +289,11 @@ public class ActionEngine {
         myplayer.resetTurnFlags();//重置两个flag //1 BLACK 2 WHITE
         Owner next=game.getCurrent().ordinal()==1?Owner.WHITE:Owner.BLACK;
         game.setCurrent(next);
+        if(game.getCurrent()==Owner.BLACK) game.setBlackFirstDone(true);//只经理一次5ap
 
         int ap = (next==Owner.BLACK && !game.isBlackFirstDone()) ? BLACK_FIRST_AP : AP_PER_TURN;
         game.getPlayer(next).setAp(ap);
-        if(next==Owner.BLACK) game.setBlackFirstDone(true);
+        ;
         //默认黑棋为先首方 为平衡首回合ap为
 
 
@@ -320,6 +364,12 @@ public class ActionEngine {
             return false;
         }
         return owner!=game.getCurrent();
+    }
+
+    //用来处理getCell 因为index越界带来null的情况
+
+    private boolean isValidCell(GameState g,int r,int c){
+        int n=g.getBoardSize(); return r>=0&&r<n&&c>=0&&c<n;
     }
 
 

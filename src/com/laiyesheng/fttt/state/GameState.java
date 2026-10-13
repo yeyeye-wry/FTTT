@@ -95,6 +95,10 @@ public class GameState {
         return BOARD_N;
     }
 
+    public Cell[][] getBoard(){
+        return this.board;
+    }
+
     public PlayerState getPlayer(Owner owner){
         return this.players[this.pidx(owner)];
     }
