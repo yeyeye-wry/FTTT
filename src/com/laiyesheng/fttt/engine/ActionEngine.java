@@ -61,7 +61,7 @@ public class ActionEngine {
             modifyCellLevel(game,r,c,1);
             this.modifyPlayerAp(game.getPlayer(game.getCurrent()),-COST_DROP);
             Score.awardScores(game,game.getCurrent());
-            WarningEngine.check_waring(game,game.getCurrent());
+            WarningEngine.checkWarning(game,game.getCurrent());
             return OK;
         }
         if(!this.isEnoughAp(game,COST_DROP))return ERR_AP_NOT_ENOUGH;
@@ -103,7 +103,7 @@ public class ActionEngine {
             modifyCellLevel(game,r,c,hand.removeAt(index));//removeAt返回-1为越界，但是还是在这里保障吧
             this.modifyPlayerAp(game.getPlayer(game.getCurrent()),-COST_DROP);
             Score.awardScores(game,game.getCurrent());
-            WarningEngine.check_waring(game,game.getCurrent());
+            WarningEngine.checkWarning(game,game.getCurrent());
             return OK;
         }//下棋！
         if(!hand.availableIndex(index))return ERR_HAND_INDEX;
@@ -129,7 +129,7 @@ public class ActionEngine {
             game.getCell(r,c).clear();//回收 this.owner=Owner.EMPTY;this.level=0;this.revealed=false;
             this.modifyPlayerAp(game.getPlayer(game.getCurrent()),-COST_RECYCLE);
             game.getCurrentPlayer().setRecycleThisTurn(true);
-            WarningEngine.check_waring(game,game.getCurrent());
+            WarningEngine.checkWarning(game,game.getCurrent());//v1:v1没有考虑回收会导致原本被阻拦的四子情况
             return OK;
         }//回收
 
@@ -180,7 +180,7 @@ public class ActionEngine {
             this.modifyPlayerAp(game.getPlayer(game.getCurrent()),-COST_DEVOUR);
             this.devourAlgorthm(game,mylevel,game.getCell(r,c));//decour 完成吞噬操作
             Score.awardScores(game,game.getCurrent());
-            WarningEngine.check_waring(game,game.getCurrent());
+            WarningEngine.checkWarning(game,game.getCurrent());
             return OK;
         }
         if(!this.isEnoughAp(game,COST_DEVOUR))return ERR_AP_NOT_ENOUGH;
@@ -263,7 +263,7 @@ public class ActionEngine {
 
                 player.setAp(player.getAp()+ADD_SYNTH);//v1:没有res==OK 让等级不同无法合成的情况也加ap了
                 Score.awardScores(game,game.getCurrent());
-                WarningEngine.check_waring(game,game.getCurrent());
+                WarningEngine.checkWarning(game,game.getCurrent());
             }
             return res;
         }
@@ -302,6 +302,7 @@ public class ActionEngine {
         game.setCurrent(next);
         int ap = (next==Owner.BLACK && !game.isBlackFirstDone()) ? BLACK_FIRST_AP : AP_PER_TURN;
         game.getPlayer(next).setAp(ap);
+        WarningEngine.checkWarning(game, next);//接手方开局先预警一次（每回合每人至多1次，由 warningUsedThisTurn 护栏）
         //默认黑棋为先首方 为平衡首回合ap为
     }
 
