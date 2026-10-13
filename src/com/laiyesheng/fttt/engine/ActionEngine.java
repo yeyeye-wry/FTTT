@@ -279,24 +279,21 @@ public class ActionEngine {
         }
     }//synthesizeAlgorthm
 
+
+    //bug重点观察
     // 结束回合 turn+1 清空ap 给对方回ap 切换current 重置回收/预警的boolean
     public void actEndTurn(GameState game){//这里的trun是双方总共的trun 如果不修改的话
         game.setTurn(game.getTurn()+1);//从0开始 0 作为空局 用来给双方布下第一个棋子 第一个棋子不消耗ap 在第0轮实现
         PlayerState myplayer=game.getCurrentPlayer();
         myplayer.setAp(0);
-
         //重置flag 换current
         myplayer.resetTurnFlags();//重置两个flag //1 BLACK 2 WHITE
+        if(game.getCurrent()==Owner.BLACK) game.setBlackFirstDone(true);//只经理一次5ap
         Owner next=game.getCurrent().ordinal()==1?Owner.WHITE:Owner.BLACK;
         game.setCurrent(next);
-        if(game.getCurrent()==Owner.BLACK) game.setBlackFirstDone(true);//只经理一次5ap
-
         int ap = (next==Owner.BLACK && !game.isBlackFirstDone()) ? BLACK_FIRST_AP : AP_PER_TURN;
         game.getPlayer(next).setAp(ap);
-        ;
         //默认黑棋为先首方 为平衡首回合ap为
-
-
     }
 
 

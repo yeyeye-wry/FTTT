@@ -40,6 +40,12 @@ public class GameState {
 
     }
 
+    public  int getWinScore(){
+        return this.winScore;
+    }
+    public void setWinScore(int winScore){
+        this.winScore=winScore;
+    }
     //turn
     public int getTurn(){
         return this.turn;
