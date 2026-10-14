@@ -127,6 +127,13 @@ public class GameState {
         return this.players[this.pidx(owner)];
     }
 
+    //getPlayers
+
+
+    public PlayerState[] getPlayers() {
+        return this.players;
+    }
+
     public PlayerState getCurrentPlayer(){
         return this.getPlayer(this.getCurrent());
     }
@@ -170,7 +177,15 @@ public class GameState {
             }
         }
 
-        //hand
+        //Player 0 1 //hand Player.hand
+
+        newgame.getPlayers()[this.pidx(Owner.BLACK)]=this.getPlayer(Owner.BLACK).playerCopy();
+        newgame.getPlayers()[this.pidx(Owner.WHITE)]=this.getPlayer(Owner.WHITE).playerCopy();
+
+
+
+
         return newgame;
+        //ok!
     }
 }

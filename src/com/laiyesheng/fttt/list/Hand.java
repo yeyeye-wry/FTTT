@@ -89,13 +89,12 @@ public class Hand {
     }
 
     public Hand handCopy(){
-        Hand newhand=new Hand();
-        PieceNode newNode=newhand.head;//之前有一个命名错把Piece写成Cell了
-        PieceNode sourceNode=this.head;//要一个个节点的copy啊
-        //while(sourceNode.getNext()!=null){
-
-        //}
-        //TODO
+        Hand newhand = new Hand();
+        PieceNode sourceNode = this.head;
+        while (sourceNode != null) {
+            newhand.add(sourceNode.getLevel());   // 这一句已经把所有节点按顺序拷过去了
+            sourceNode = sourceNode.getNext();
+        }
         return newhand;
     }
 

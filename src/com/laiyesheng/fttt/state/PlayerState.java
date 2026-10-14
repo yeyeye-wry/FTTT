@@ -17,6 +17,18 @@ public class PlayerState {
         this.warningUsedThisTurn=false;
         //ap的取决于 黑白 和是否首个回合 暂时不表
     }
+    //copy
+    public PlayerState playerCopy(){
+        PlayerState newPlayer=new PlayerState(this.owner);
+        newPlayer.setAp(this.getAp());
+        newPlayer.setScore(this.getScore());
+        newPlayer.setWarningUsedThisTurn(this.warningUsedThisTurn);
+        newPlayer.setRecycleThisTurn(this.isRecycleThisTurn());
+        newPlayer.setHand(this.hand.handCopy());//v1:漏加了手牌
+        return newPlayer;
+    }
+
+
 
     //score
     public void setScore(int score){
@@ -46,9 +58,9 @@ public class PlayerState {
 
     //Hand
 
-    /*public void setHand(Hand hand){
+    public void setHand(Hand hand){
         this.hand=hand;
-    }*/
+    }
 
     public Hand getHand(){
         return this.hand;
