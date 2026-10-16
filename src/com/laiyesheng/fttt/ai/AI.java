@@ -16,11 +16,11 @@ public class AI {
     public static final int NORML=1;
     public static final int HARD=2;
 
-    public static AiMoveList genMoves(GameState game,Owner player){
+    public static MoveArrayList genMoves(GameState game,Owner player){
         Owner opp=(player ==Owner.BLACK)?Owner.WHITE:Owner.BLACK;//对方
         //int ap =game.getPlayer(player).getAp();
         boolean hasMine=HasMyPiece(game,player);
-        AiMoveList list =new AiMoveList();
+        MoveArrayList list =new MoveArrayList();
         PlayerState playerNow=game.getPlayer(player);//己方对象
         int Ap=playerNow.getAp();
         Hand playerhand=playerNow.getHand();
@@ -175,9 +175,9 @@ public class AI {
 
 
     //助手 在添加之后 自动判断是不是list.size()>=400
-    private static boolean addCapped(AiMoveList list,AIMove move){
+    private static boolean addCapped(MoveArrayList list,AIMove move){
         list.add(move);
-        return list.size()>=100;
+        return list.size()>=400;//100太少了 ai不富有变化
 
     }
 
@@ -342,14 +342,14 @@ public class AI {
 //v2：normal对局时间测试 1分55秒
     //v2:增加了make unmake 撤销栈帧  （栈用java自带的） 不用gamecopy 每次都要完全复制一边game
     public static AIMove aiChooseMove(GameState game,Owner player){
-        AiMoveList moves=genMoves(game,player);
+        MoveArrayList moves=genMoves(game,player);
         AIMove best=AIMove.end();//找到“最佳”一步
         int tries=0;
         int hardLevel= game.getDifficulty();
         if(hardLevel==DIFF_EASY) { //EASY:随机
             java.util.Random rand = new java.util.Random();
             do {//随机抽取
-                best = moves.getAiMoveidx(rand.nextInt(moves.size()));
+                best = moves.get(rand.nextInt(moves.size()));
                 //随机抽取就使用getidx了 //v3：normal 对局时间测试：1分42秒 没有根本性缩短时间
                 tries++;
             } while (best.type() == MoveType.END && moves.size() > 1 && tries < 10);
@@ -373,7 +373,7 @@ public class AI {
                 if(hard){//如果是hard
                     //考虑对手的一步 最坏（对手最好）
                     Owner opp = (player == Owner.BLACK) ? Owner.WHITE : Owner.BLACK;
-                    AiMoveList opponentMoves = genMoves(game, opp);
+                    MoveArrayList opponentMoves = genMoves(game, opp);
                     double worst = 1e9;
                     //内存循环 一样由索引查询(每次都要n次 改为) for_each遍历
                     for (AIMove oppMove:opponentMoves) {
@@ -452,6 +452,54 @@ public class AI {
 
     }
 
+    //将maxrun linepoentail 和sumlevel 合并 减少不日complutevision之类多余重复调用带来的时间浪费
+
+    private static int[] scanLines(GameState game,Owner player){
+        int bestRun=0;
+        int potential=0;
+        int boardSize= game.getBoardSize();
+        for(int k=0;k<4;k++) {
+            int dx=DIRS[k][0];
+            int dy=DIRS[k][1];
+            for (int r = 0; r < boardSize; r++) {
+                for (int c = 0; c < boardSize; c++) {
+                    if(game.getCell(r,c).getOwner()!=player)continue;
+                    int pr=r-dx;
+                    int pc=c-dy;
+                    if(pr>=0&&pr<boardSize&&pc>=0&&pc<boardSize&&game.getCell(r,c).getOwner()==player){
+                        continue;
+                    }
+                    int len=0;
+                    int rr=r;
+                    int cc=c;
+                    while(rr>=0&&rr<boardSize&&cc>=0&&cc<boardSize&&game.getCell(rr,cc).getOwner()==player){
+                        len++;
+                        rr+=dx;
+                        cc+=dy;
+                    }
+                    if(len>bestRun)bestRun=len;
+                    int openEnds=0;
+                    int sr=r-dx;
+                    int sc=r-dy;
+                    if(sr>=0&&sr<boardSize&&sc>=0&&sc<boardSize && game.getCell(sr,sc).getOwner()==Owner.EMPTY) openEnds++;
+                    if(rr>=0&&rr<boardSize&&cc>=0&&cc<boardSize && game.getCell(rr,cc).getOwner()==Owner.EMPTY) openEnds++;
+                    int w;
+                    switch (len){
+                        case 1:w=1;break;
+                        case 2:w=5;break;
+                        case 3:w=30;break;
+                        case 4:w=300;break;
+                        default:w=1000;break;
+                    }
+                    if(openEnds==2)w*=2;
+                    else if(openEnds==0)w=(int)(w*0.3);
+                    potential+=w;
+
+                }
+            }
+        }
+        return new int[]{bestRun,potential};
+    }
 
 }
 

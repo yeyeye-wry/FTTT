@@ -3,10 +3,12 @@ package com.laiyesheng.fttt.ai;
 import com.laiyesheng.fttt.map.Owner;
 import com.laiyesheng.fttt.state.GameState;
 
+//v4: 将链表替换顺序表 一样使用迭代器接口 ？？
 public class AIVsAiTest {
+
     public static void main(String[] args) {
-        int difficulty = 1;                       // 先 1(NORMAL) 快速验证；再 2(HARD) 压测深搜
-        GameState g = new GameState(1, difficulty, 50);
+        int difficulty = 2;                       // 先 1(NORMAL) 快速验证；再 2(HARD) 压测深搜
+        GameState g = new GameState(1, difficulty, 100);
         int maxTurns = 300;
         int t = 0;
         while (g.getPhase() == 1 && t < maxTurns) {
