@@ -219,8 +219,8 @@ public class AI {
         //制导因素 分数差  *1000.0 v1:gei *20.0 会让ai一直四连不收
         double score=(game.getPlayer(me).getScore()-game.getPlayer(opp).getScore())*1000.0;
        // score +=linePotential(game,me)*1.0;//连线潜力
-       score +=scoreScanMe[1]*1.0;//连线潜力
-        score +=(sumLevels(game,me)-sumLevels(game,opp))*0.5;//偏好高等级 收分快
+       score +=(scoreScanMe[1]-scoreScanOpp[1])*1.0;//连线潜力 //进攻+防守(吞噬)
+        score +=(sumLevels(game,me)-sumLevels(game,opp))*5.0;//偏好高等级 收分快
         //int myMax=maxRun(game,me);
         int myMax=scoreScanMe[0];
        // int oppMax=maxRun(game,opp);
@@ -229,7 +229,7 @@ public class AI {
         if(myMax>=4)score+=50.0; //4子连我 getscore
         if(oppMax>=4)score -=200.0;//对方四子 谨慎
         score +=(visionCells(game,me)-visionCells(game,opp))*0.1;//视野
-        score +=(game.getPlayer(me).getAp()-game.getPlayer(opp).getAp())*0.02;
+        score +=(game.getPlayer(me).getAp()-game.getPlayer(opp).getAp())*20.0;
         score+=game.getPlayer(me).getHand().size()*1.0;
 
         return score;
@@ -480,10 +480,12 @@ public class AI {
                         continue;
                     }
                     int len=0;
+                    int levelSum=0;
                     int rr=r;
                     int cc=c;
                     while(rr>=0&&rr<boardSize&&cc>=0&&cc<boardSize&&game.getCell(rr,cc).getOwner()==player){
                         len++;
+                        levelSum+=game.getCell(rr,cc).getLevel();
                         rr+=dx;
                         cc+=dy;
                     }
@@ -503,7 +505,7 @@ public class AI {
                     }
                     if(openEnds==2)w*=2;
                     else if(openEnds==0)w=(int)(w*0.3);
-                    potential+=w;
+                    potential += (w * levelSum) / Math.max(1, len);
 
                 }
             }
