@@ -182,6 +182,8 @@ public class AI {
     }
 
     //v1 直接拷贝game运行 //v2:使用helper:applyMoveTo
+
+
     public static GameState applyMove(GameState game, AIMove move, Owner player) {
         GameState gameCopy = game.GameStateCopy();
         boolean ok = applyMoveTo(gameCopy, move, player);
@@ -206,16 +208,24 @@ public class AI {
 //        //虽然经过genmove过滤不会触发执行失败 但是以防万一
 //    }//apply一个AiMove
 
+    //v4 将computerVisio提出了 对外保持俩参数接口 方法重载
 
+//myVisible 我方可见视野大小 oppVisible
     public static double evaluateState(GameState game,Owner me){
         Owner opp =(me==Owner.BLACK)?Owner.WHITE:Owner.BLACK;
 
+        int[] scoreScanMe=scanLines(game,me);
+        int[] scoreScanOpp=scanLines(game,opp);
         //制导因素 分数差  *1000.0 v1:gei *20.0 会让ai一直四连不收
         double score=(game.getPlayer(me).getScore()-game.getPlayer(opp).getScore())*1000.0;
-        score +=linePotential(game,me)*1.0;//连线潜力
+       // score +=linePotential(game,me)*1.0;//连线潜力
+       score +=scoreScanMe[1]*1.0;//连线潜力
         score +=(sumLevels(game,me)-sumLevels(game,opp))*0.5;//偏好高等级 收分快
-        int myMax=maxRun(game,me);
-        int oppMax=maxRun(game,opp);
+        //int myMax=maxRun(game,me);
+        int myMax=scoreScanMe[0];
+       // int oppMax=maxRun(game,opp);
+       int oppMax=scoreScanOpp[0];
+
         if(myMax>=4)score+=50.0; //4子连我 getscore
         if(oppMax>=4)score -=200.0;//对方四子 谨慎
         score +=(visionCells(game,me)-visionCells(game,opp))*0.1;//视野
@@ -466,7 +476,7 @@ public class AI {
                     if(game.getCell(r,c).getOwner()!=player)continue;
                     int pr=r-dx;
                     int pc=c-dy;
-                    if(pr>=0&&pr<boardSize&&pc>=0&&pc<boardSize&&game.getCell(r,c).getOwner()==player){
+                    if(pr>=0&&pr<boardSize&&pc>=0&&pc<boardSize&&game.getCell(pr,pc).getOwner()==player){
                         continue;
                     }
                     int len=0;
@@ -501,6 +511,14 @@ public class AI {
         return new int[]{bestRun,potential};
     }
 
+
+    //helper
+    //统计可见格数量（对computeVision后 已填好的 boolean[][]）
+    private static int countVisible(boolean[][] vis){
+        int n=vis.length, cnt=0;
+        for(int r=0;r<n;r++) for(int c=0;c<n;c++) if(vis[r][c]) cnt++;
+        return cnt;
+    }
 }
 
 

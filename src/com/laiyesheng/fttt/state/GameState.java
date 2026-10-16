@@ -6,8 +6,8 @@ import com.laiyesheng.fttt.list.Log;
 
 //或许加个手牌 还是我之前忘记写了？
 public class GameState {
-    static final int BOARD_N = 11;//忘记加public 那就不加了
-
+    static final int BOARD_N = 20;//忘记加public 那就不加了
+//11->20 速度明显降低 v3:还为合并maxrun 和linepotential
     private Cell[][] board;
     private PlayerState[] players;
     private Owner current=Owner.BLACK;//当前行动方

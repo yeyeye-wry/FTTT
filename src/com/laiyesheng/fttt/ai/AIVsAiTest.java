@@ -4,6 +4,10 @@ import com.laiyesheng.fttt.map.Owner;
 import com.laiyesheng.fttt.state.GameState;
 
 //v4: 将链表替换顺序表 一样使用迭代器接口 ？？
+//以score 100 20*20测试
+// 9.0s no debug
+//8.0 9.0s
+//8.25s
 public class AIVsAiTest {
 
     public static void main(String[] args) {
