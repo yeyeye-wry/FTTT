@@ -213,10 +213,10 @@ public class AI {
 
         //制导因素 分数差  *1000.0 v1:gei *20.0 会让ai一直四连不收
         double score=(game.getPlayer(me).getScore()-game.getPlayer(opp).getScore())*1000.0;
-        score +=scanLines(game,me)[1]*1.0;//连线潜力
+        score +=linePotential(game,me)*1.0;//连线潜力
         score +=(sumLevels(game,me)-sumLevels(game,opp))*0.5;//偏好高等级 收分快
-        int myMax=scanLines(game,me)[0];
-        int oppMax=scanLines(game,opp)[1];
+        int myMax=maxRun(game,me);
+        int oppMax=maxRun(game,opp);
         if(myMax>=4)score+=50.0; //4子连我 getscore
         if(oppMax>=4)score -=200.0;//对方四子 谨慎
         score +=(visionCells(game,me)-visionCells(game,opp))*0.1;//视野
@@ -444,53 +444,6 @@ public class AI {
 
     }
 
-
-    // 一次扫描：返回 [最长连子数, 连线潜力加权和]（合并原 maxRun + linePotential）
-    private static int[] scanLines(GameState game, Owner player) {
-        int best = 0, total = 0;
-        int n = game.getBoardSize();
-        for (int d = 0; d < 4; d++) {
-            int dx = DIRS[d][0], dy = DIRS[d][1];
-            for (int r = 0; r < n; r++) {
-                for (int c = 0; c < n; c++) {
-                    if (game.getCell(r, c).getOwner() != player) continue;
-                    int pr = r - dx, pc = c - dy;
-                    if (pr >= 0 && pr < n && pc >= 0 && pc < n
-                            && game.getCell(pr, pc).getOwner() == player) continue;   // 非连线起点则跳过
-                    int len = 0, rr = r, cc = c;
-                    while (rr >= 0 && rr < n && cc >= 0 && cc < n
-                            && game.getCell(rr, cc).getOwner() == player) {
-                        len++; rr += dx; cc += dy;
-                    }
-                    if (len > best) best = len;
-                    int openEnds = 0;
-                    int sr = r - dx, sc = c - dy;
-                    if (sr >= 0 && sr < n && sc >= 0 && sc < n
-                            && game.getCell(sr, sc).getOwner() == Owner.EMPTY) openEnds++;
-                    if (rr >= 0 && rr < n && cc >= 0 && cc < n
-                            && game.getCell(rr, cc).getOwner() == Owner.EMPTY) openEnds++;
-                    int w;
-                    switch (len) {
-                        case 1: w = 1; break;
-                        case 2: w = 5; break;
-                        case 3: w = 30; break;
-                        case 4: w = 300; break;
-                        default: w = 1000; break;
-                    }
-                    if (openEnds == 2) w *= 2;
-                    else if (openEnds == 0) w = (int) (w * 0.3);
-                    total += w;
-                }
-            }
-        }
-        return new int[]{best, total};
-    }
-
-    private static int countVisible(boolean[][] vis) {
-        int n = vis.length, s = 0;
-        for (int r = 0; r < n; r++) for (int c = 0; c < n; c++) if (vis[r][c]) s++;
-        return s;
-    }
 
 }
 

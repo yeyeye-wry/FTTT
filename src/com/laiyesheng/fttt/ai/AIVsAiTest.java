@@ -5,7 +5,7 @@ import com.laiyesheng.fttt.state.GameState;
 
 public class AIVsAiTest {
     public static void main(String[] args) {
-        int difficulty = 1;                       // 先 1(NORMAL) 快速验证；再 2(HARD) 压测深搜
+        int difficulty = 0;                       // 先 1(NORMAL) 快速验证；再 2(HARD) 压测深搜
         GameState g = new GameState(1, difficulty, 50);
         int maxTurns = 300;
         int t = 0;
