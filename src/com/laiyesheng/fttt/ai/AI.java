@@ -26,10 +26,17 @@ public class AI {
         Hand playerhand=playerNow.getHand();
         if(hasMine){//棋盘上有棋子
             int boardSize=game.getBoardSize();
+            boolean[][] Vision=new boolean[boardSize][boardSize];
+            for(int r=0;r<boardSize;r++) {
+                for(int c=0;c<boardSize;c++)
+                    Vision[r][c]=VisionEngine.inVision(game,player,r,c);//v2 一次性查完 后面查表O(1)
+            }
             outer:for(int r=0;r<boardSize;r++){
                 for(int c=0;c<boardSize;c++){
                     Cell thisCell=game.getCell(r,c);
-                    boolean isVision=VisionEngine.inVision(game,player,r,c);
+                    //boolean isVision=VisionEngine.inVision(game,player,r,c);
+                    //V1：一个个试一试显然脱时间 不能放再这里
+                    boolean isVision=Vision[r][c];
 
                     boolean placeOk=thisCell.isEmpty()&&isVision&&adjacentToMine(game,r,c,player);
                     if(placeOk){
@@ -171,27 +178,34 @@ public class AI {
     //助手 在添加之后 自动判断是不是list.size()>=400
     private static boolean addCapped(AiMoveList list,AIMove move){
         list.add(move);
-        return list.size()>=400;
+        return list.size()>=100;
 
     }
 
-    public static GameState applyMove(GameState game,AIMove move,Owner player){
-        GameState gameCopy=game.GameStateCopy();
-        gameCopy.setCurrent(player);
-        ActionEngine actionEngine =new ActionEngine();
-        int rc=0;//返回code
-        switch (move.type()){ //record 类型中自带的访问器访问AiMoveType type
-            case DROP_NEW ->rc=actionEngine.actDropNew(gameCopy, move.r(),move.c());
-            case DROP_HAND ->rc=actionEngine.actDropHand(gameCopy,move.r(),move.c(),move.idx());
-            case RECYCLE ->rc=actionEngine.actRecycle(gameCopy,move.r(),move.c());
-            case VIEW -> rc=actionEngine.actView(gameCopy,move.r(),move.c());
-            case DEVUOR ->rc=actionEngine.actDevour(gameCopy,move.r(),move.c(), move.idx());
-            case SYNTH -> rc=actionEngine.actSynthesize(gameCopy,move.r(),move.c(),move.r2(),move.c2());
-            case END -> actionEngine.actEndTurn(gameCopy);
-        }
-        return rc==0?gameCopy:null;//在外需要考虑一下null的情况
-        //虽然经过genmove过滤不会触发执行失败 但是以防万一
-    }//apply一个AiMove
+    //v1 直接拷贝game运行 //v2:使用helper:applyMoveTo
+    public static GameState applyMove(GameState game, AIMove move, Owner player) {
+        GameState gameCopy = game.GameStateCopy();
+        boolean ok = applyMoveTo(gameCopy, move, player);
+        return ok ? gameCopy : null;          // 失败返回 null（安全闸）
+    }
+//
+//    public static GameState applyMove(GameState game,AIMove move,Owner player){
+//        GameState gameCopy=game.GameStateCopy();
+//        gameCopy.setCurrent(player);
+//        ActionEngine actionEngine =new ActionEngine();
+//        int rc=0;//返回code
+//        switch (move.type()){ //record 类型中自带的访问器访问AiMoveType type
+//            case DROP_NEW ->rc=actionEngine.actDropNew(gameCopy, move.r(),move.c());
+//            case DROP_HAND ->rc=actionEngine.actDropHand(gameCopy,move.r(),move.c(),move.idx());
+//            case RECYCLE ->rc=actionEngine.actRecycle(gameCopy,move.r(),move.c());
+//            case VIEW -> rc=actionEngine.actView(gameCopy,move.r(),move.c());
+//            case DEVUOR ->rc=actionEngine.actDevour(gameCopy,move.r(),move.c(), move.idx());
+//            case SYNTH -> rc=actionEngine.actSynthesize(gameCopy,move.r(),move.c(),move.r2(),move.c2());
+//            case END -> actionEngine.actEndTurn(gameCopy);
+//        }
+//        return rc==0?gameCopy:null;//在外需要考虑一下null的情况
+//        //虽然经过genmove过滤不会触发执行失败 但是以防万一
+//    }//apply一个AiMove
 
 
     public static double evaluateState(GameState game,Owner me){
@@ -199,10 +213,10 @@ public class AI {
 
         //制导因素 分数差  *1000.0 v1:gei *20.0 会让ai一直四连不收
         double score=(game.getPlayer(me).getScore()-game.getPlayer(opp).getScore())*1000.0;
-        score +=linePotential(game,me)*1.0;//连线潜力
+        score +=scanLines(game,me)[1]*1.0;//连线潜力
         score +=(sumLevels(game,me)-sumLevels(game,opp))*0.5;//偏好高等级 收分快
-        int myMax=maxRun(game,me);
-        int oppMax=maxRun(game,opp);
+        int myMax=scanLines(game,me)[0];
+        int oppMax=scanLines(game,opp)[1];
         if(myMax>=4)score+=50.0; //4子连我 getscore
         if(oppMax>=4)score -=200.0;//对方四子 谨慎
         score +=(visionCells(game,me)-visionCells(game,opp))*0.1;//视野
@@ -224,7 +238,7 @@ public class AI {
                 if(game.getCell(r,c).getOwner()!=player)continue;//己格
                 int pr=r-dx;
                 int pc=c-dy;
-                if(pr>=0&&pr<boardSize&&pc>=0&&game.getCell(pr,pc).getOwner()==player){
+                if(pr>=0&&pr<boardSize&&pc>=0&&pc<boardSize&&game.getCell(pr,pc).getOwner()==player){
                     continue;
                 }//前导格子 直到（pr pc）不是己格
 
@@ -232,7 +246,7 @@ public class AI {
                     int len=0;
                     int rr=r;
                     int cc=c;
-                    while (rr>=0&&rr<boardSize&&cc>=0&&game.getCell(rr,cc).getOwner()==player){
+                    while (rr>=0&&rr<boardSize&&cc>=0&&cc<boardSize&&game.getCell(rr,cc).getOwner()==player){
                         len++;
                         rr+=dx;
                         cc+=dy;
@@ -291,7 +305,7 @@ public class AI {
                        int len=0;
                        int rr=r;
                        int cc=c;
-                       while(rr>=0&&rr<boardSize&&cc<boardSize&&game.getCell(rr,cc).getOwner()==player){
+                       while(rr>=0&&rr<boardSize&&cc>=0&&cc<boardSize&&game.getCell(rr,cc).getOwner()==player){
                            len++;
                            rr+=dx;
                            cc+=dy;
@@ -329,17 +343,155 @@ public class AI {
 
     public static AIMove aiChooseMove(GameState game,Owner player){
         AiMoveList moves=genMoves(game,player);
-        AIMove best=AIMove.end();
+        AIMove best=AIMove.end();//找到“最佳”一步
         int tries=0;
-        if(game.getDifficulty()==DIFF_EASY){ //EASY:随机
+        int hardLevel= game.getDifficulty();
+        if(hardLevel==DIFF_EASY) { //EASY:随机
             java.util.Random rand = new java.util.Random();
-            do{//随机抽取
-                best= moves.getAiMoveidx(rand.nextInt(moves.size()));
+            do {//随机抽取
+                best = moves.getAiMoveidx(rand.nextInt(moves.size()));
                 tries++;
-            }while(best.type()==MoveType.END&&moves.size()>1&&tries<10)
+            } while (best.type() == MoveType.END && moves.size() > 1 && tries < 10);
+
             return best;
         }
+
+        double bestEval=-1e9;
+        boolean hard =(hardLevel==HARD);//hard depth==1
+            for(int i=0;i<moves.size();i++){
+                AIMove move=moves.getAiMoveidx(i);
+               GameState next=applyMove(game,move,player);
+               if(next==null)continue;//安全检测：执行失败 跳过
+               double eval;
+               if(hard){ //depth==1 考虑对手下“对我最不利”的最先手回应7
+                   //Min 即是取到值最小的值
+                Owner opp=(player==Owner.BLACK)?Owner.WHITE:Owner.BLACK;
+                AiMoveList opponentMoves=genMoves(next,opp);
+                double worst =1e9;
+                   for(int j=0;j<opponentMoves.size();j++){
+                       AIMove opponentMove=opponentMoves.getAiMoveidx(j);
+                       GameState after =applyMove(next,opponentMove,opp);
+                        if(after==null){
+                            continue;
+                        }
+                        double e=evaluateState(after,player);
+                        if(e<worst)worst=e;
+                   }
+
+                   //v1：size==1 对手实际上worst已经包含了只有end的可能 所以用来兜底完全没有行动的情况
+                    eval=(opponentMoves.size()>0)?worst:evaluateState(next,player);//做当前局面评估 如果对手无法行动
+                   //这个代码大概率是死的 但是我无法决定
+               }else{
+                   eval=evaluateState(next,player);//NORMAL;
+                   //正常难度  再对手完全死机的时候和hard难度差不多
+               }
+               if(eval>bestEval){
+                   bestEval=eval;
+                   best=move;
+               }
+
+            }
+        return best;
     }
+
+
+    //落地ai行为
+    private  static boolean applyMoveTo(GameState game,AIMove move,Owner player){
+        game.setCurrent(player);
+        ActionEngine engine =new ActionEngine();
+        int rc=0;//retuen code
+        switch (move.type()){
+            case DROP_NEW -> rc = engine.actDropNew(game, move.r(), move.c());
+            case DROP_HAND -> rc = engine.actDropHand(game, move.r(), move.c(), move.idx());
+            case RECYCLE  -> rc = engine.actRecycle(game, move.r(), move.c());
+            case VIEW     -> rc = engine.actView(game, move.r(), move.c());
+            case DEVUOR   -> rc = engine.actDevour(game, move.r(), move.c(), move.idx());
+            case SYNTH    -> rc = engine.actSynthesize(game, move.r(), move.c(), move.r2(), move.c2());
+            case END      -> engine.actEndTurn(game);
+        }
+        return rc == 0;
+    }
+
+    //aiTakeTurn 回合
+    public  static void aiTakeTurn(GameState game){
+        ActionEngine engine =new ActionEngine();
+        int guard =0; //防止卡死 一直下 单回合最多60步 或许还可以减小，如果一直超过
+        //有必要减少合成奖励分 5->3/4?
+        while(game.getPhase()==1&&guard<60){
+            guard++;
+            AIMove move=aiChooseMove(game,game.getCurrent());
+            if(move.type()==MoveType.END){
+                engine.actEndTurn(game);
+                break;//结束
+            }
+
+            boolean ok=applyMoveTo(game,move,game.getCurrent());
+            if(!ok){   //
+                engine.actEndTurn(game);
+                break;
+            }
+
+            if(game.getPlayer(game.getCurrent()).getAp()<1){
+                //ap不足
+                engine.actEndTurn(game);
+                break;
+
+            }
+
+        }
+
+
+
+    }
+
+
+    // 一次扫描：返回 [最长连子数, 连线潜力加权和]（合并原 maxRun + linePotential）
+    private static int[] scanLines(GameState game, Owner player) {
+        int best = 0, total = 0;
+        int n = game.getBoardSize();
+        for (int d = 0; d < 4; d++) {
+            int dx = DIRS[d][0], dy = DIRS[d][1];
+            for (int r = 0; r < n; r++) {
+                for (int c = 0; c < n; c++) {
+                    if (game.getCell(r, c).getOwner() != player) continue;
+                    int pr = r - dx, pc = c - dy;
+                    if (pr >= 0 && pr < n && pc >= 0 && pc < n
+                            && game.getCell(pr, pc).getOwner() == player) continue;   // 非连线起点则跳过
+                    int len = 0, rr = r, cc = c;
+                    while (rr >= 0 && rr < n && cc >= 0 && cc < n
+                            && game.getCell(rr, cc).getOwner() == player) {
+                        len++; rr += dx; cc += dy;
+                    }
+                    if (len > best) best = len;
+                    int openEnds = 0;
+                    int sr = r - dx, sc = c - dy;
+                    if (sr >= 0 && sr < n && sc >= 0 && sc < n
+                            && game.getCell(sr, sc).getOwner() == Owner.EMPTY) openEnds++;
+                    if (rr >= 0 && rr < n && cc >= 0 && cc < n
+                            && game.getCell(rr, cc).getOwner() == Owner.EMPTY) openEnds++;
+                    int w;
+                    switch (len) {
+                        case 1: w = 1; break;
+                        case 2: w = 5; break;
+                        case 3: w = 30; break;
+                        case 4: w = 300; break;
+                        default: w = 1000; break;
+                    }
+                    if (openEnds == 2) w *= 2;
+                    else if (openEnds == 0) w = (int) (w * 0.3);
+                    total += w;
+                }
+            }
+        }
+        return new int[]{best, total};
+    }
+
+    private static int countVisible(boolean[][] vis) {
+        int n = vis.length, s = 0;
+        for (int r = 0; r < n; r++) for (int c = 0; c < n; c++) if (vis[r][c]) s++;
+        return s;
+    }
+
 }
 
 
