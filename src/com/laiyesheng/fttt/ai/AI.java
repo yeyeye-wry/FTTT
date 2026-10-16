@@ -27,10 +27,9 @@ public class AI {
         if(hasMine){//棋盘上有棋子
             int boardSize=game.getBoardSize();
             boolean[][] Vision=new boolean[boardSize][boardSize];
-            for(int r=0;r<boardSize;r++) {
-                for(int c=0;c<boardSize;c++)
-                    Vision[r][c]=VisionEngine.inVision(game,player,r,c);//v2 一次性查完 后面查表O(1)
-            }
+            VisionEngine.computeVision(game,player,Vision);
+            //computeVision 得到可见格子 一次 以后可以直接查表
+
             outer:for(int r=0;r<boardSize;r++){
                 for(int c=0;c<boardSize;c++){
                     Cell thisCell=game.getCell(r,c);
@@ -340,7 +339,8 @@ public class AI {
         }
         return total;
     }
-
+//v2：normal对局时间测试 1分55秒
+    //v2:增加了make unmake 撤销栈帧  （栈用java自带的） 不用gamecopy 每次都要完全复制一边game
     public static AIMove aiChooseMove(GameState game,Owner player){
         AiMoveList moves=genMoves(game,player);
         AIMove best=AIMove.end();//找到“最佳”一步
@@ -350,6 +350,7 @@ public class AI {
             java.util.Random rand = new java.util.Random();
             do {//随机抽取
                 best = moves.getAiMoveidx(rand.nextInt(moves.size()));
+                //随机抽取就使用getidx了 //v3：normal 对局时间测试：1分42秒 没有根本性缩短时间
                 tries++;
             } while (best.type() == MoveType.END && moves.size() > 1 && tries < 10);
 
@@ -358,45 +359,52 @@ public class AI {
 
         double bestEval=-1e9;
         boolean hard =(hardLevel==HARD);//hard depth==1
-            for(int i=0;i<moves.size();i++){
-                AIMove move=moves.getAiMoveidx(i);
-               GameState next=applyMove(game,move,player);
-               if(next==null)continue;//安全检测：执行失败 跳过
-               double eval;
-               if(hard){ //depth==1 考虑对手下“对我最不利”的最先手回应7
-                   //Min 即是取到值最小的值
-                Owner opp=(player==Owner.BLACK)?Owner.WHITE:Owner.BLACK;
-                AiMoveList opponentMoves=genMoves(next,opp);
-                double worst =1e9;
-                   for(int j=0;j<opponentMoves.size();j++){
-                       AIMove opponentMove=opponentMoves.getAiMoveidx(j);
-                       GameState after =applyMove(next,opponentMove,opp);
-                        if(after==null){
-                            continue;
-                        }
-                        double e=evaluateState(after,player);
-                        if(e<worst)worst=e;
-                   }
 
-                   //v1：size==1 对手实际上worst已经包含了只有end的可能 所以用来兜底完全没有行动的情况
-                    eval=(opponentMoves.size()>0)?worst:evaluateState(next,player);//做当前局面评估 如果对手无法行动
-                   //这个代码大概率是死的 但是我无法决定
-               }else{
-                   eval=evaluateState(next,player);//NORMAL;
-                   //正常难度  再对手完全死机的时候和hard难度差不多
-               }
-               if(eval>bestEval){
-                   bestEval=eval;
-                   best=move;
-               }
+        //有索引查询 改为迭代器 for—each遍历
+            for (AIMove move:moves) {
+                //AIMove move = moves.getAiMoveidx(i);
+                //V1:我将moveList写成了链表 getidx在每个虚幻中一共要m*n次
 
-            }
+                //GameState next=applyMove(game,move,player);
+                UndoRecord ur = UndoRecord.makeMove(game, move, player);
+                if (ur == null) continue;//安全检测：执行失败 跳过 非法move 已经自带弹出了
+                double eval;
+
+                if(hard){//如果是hard
+                    //考虑对手的一步 最坏（对手最好）
+                    Owner opp = (player == Owner.BLACK) ? Owner.WHITE : Owner.BLACK;
+                    AiMoveList opponentMoves = genMoves(game, opp);
+                    double worst = 1e9;
+                    //内存循环 一样由索引查询(每次都要n次 改为) for_each遍历
+                    for (AIMove oppMove:opponentMoves) {
+                        UndoRecord urOpp = UndoRecord.makeMove(game, oppMove, opp);
+                        if (urOpp == null) continue;//执行失败 自带Pop
+
+                        double e = evaluateState(game, player);//评估
+
+                        UndoRecord.undoMove(game, urOpp); //Pop
+                        if (e < worst) worst = e;//考虑对手出了最有利于对手的一步 也就是我方e最小的情况
+                    }//for moveopp
+                    eval = (opponentMoves.size() > 0) ? worst : evaluateState(game, player);
+                }
+                else{
+                    eval = evaluateState(game, player);
+                }
+
+                UndoRecord.undoMove(game, ur);//撤回
+                if (eval > bestEval) {
+                    bestEval = eval;
+                    best = move;
+                }
+
+            }//for moveme
+
         return best;
     }
 
 
     //落地ai行为
-    private  static boolean applyMoveTo(GameState game,AIMove move,Owner player){
+    public   static boolean applyMoveTo(GameState game,AIMove move,Owner player){
         game.setCurrent(player);
         ActionEngine engine =new ActionEngine();
         int rc=0;//retuen code
