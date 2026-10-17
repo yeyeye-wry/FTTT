@@ -8,7 +8,7 @@ import java.sql.SQLException;
 public class Db {
 
     private static final String URL =
-            "jdbc:mysql://localhost:3306/fttt?useSSL=false&serverTimezone==UTC&characterEncoding=utf8mb4";
+            "jdbc:mysql://localhost:3306/fttt?useSSL=false&serverTimezone=UTC&characterEncoding=UTF-8";
     private static final String USER = "root";
     private static final String PASS = "123456";
 

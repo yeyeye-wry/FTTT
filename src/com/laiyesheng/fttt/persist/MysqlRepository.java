@@ -11,7 +11,13 @@ import java.util.List;
 public class MysqlRepository implements Repository {
 
     @Override
-    public  void saveUser(User u){//在try()里面声明的资源 正常结束或者抛出异常之后会close()
+    public  boolean saveUser(User u){//在try()里面声明的资源 正常结束或者抛出异常之后会close()
+
+        //保障不是同名的 数据库UNIQUE 确保不能插入同名的
+        if (findUser(u.getUsername()) != null) {
+            return false;
+        }
+
         String sql="INSERT INTO users(username,pwd_hash,salt,reg_time) VALUES(?,?,?,NOW())";
         try(Connection c=Db.get();
             PreparedStatement ps = c.prepareStatement(sql,Statement.RETURN_GENERATED_KEYS)){
@@ -27,8 +33,14 @@ public class MysqlRepository implements Repository {
                 if(rs.next())u.setUserId(rs.getLong(1));//拿回在数据库中自增的主键
             }
         } catch(SQLException e) {
+            // 并发情况下两个请求同时通过上面 findUser 预检，最终由 DB UNIQUE 约束兜底
+            if ("23000".equals(e.getSQLState()) || e.getErrorCode() == 1062) {
+                return false;
+            }
             throw new RuntimeException(e);
         }
+
+        return true;
     }
 
 
@@ -89,4 +101,27 @@ public class MysqlRepository implements Repository {
         } catch (SQLException e) { throw new RuntimeException(e); }
         return list;
     }
+
+
+    //记录对局结果并且 更新users的wins losses best_score
+    @Override
+    public void recordResult(long userId, int score, boolean won) {
+        String ins = "INSERT INTO matches(user_id,score,played_at) VALUES(?,?,NOW())";
+        String upd = "UPDATE users SET best_score=GREATEST(best_score,?), "
+                + "wins=wins+?, losses=losses+? WHERE user_id=?";
+        try (Connection c = Db.get();
+             PreparedStatement ps1 = c.prepareStatement(ins);
+             PreparedStatement ps2 = c.prepareStatement(upd)) {
+            ps1.setLong(1, userId);
+            ps1.setInt(2, score);
+            ps1.executeUpdate();
+
+            ps2.setInt(1, score);
+            ps2.setInt(2, won ? 1 : 0);
+            ps2.setInt(3, won ? 0 : 1);
+            ps2.setLong(4, userId);
+            ps2.executeUpdate();
+        } catch (SQLException e) { throw new RuntimeException(e); }
+    }//实现了 保留对局结果 并且正确修改users数据
+
 }

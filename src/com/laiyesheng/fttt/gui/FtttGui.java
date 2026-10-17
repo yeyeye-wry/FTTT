@@ -18,6 +18,13 @@ import com.laiyesheng.fttt.ai.AI;
 import com.laiyesheng.fttt.ai.AIMove;
 import com.laiyesheng.fttt.ai.MoveType;
 import com.laiyesheng.fttt.ai.MoveArrayList;
+import com.laiyesheng.fttt.user.UserService;
+import com.laiyesheng.fttt.user.User;
+import com.laiyesheng.fttt.persist.RankRow;
+import com.laiyesheng.fttt.persist.MysqlRepository;
+import com.laiyesheng.fttt.persist.ForumRepository;
+import com.laiyesheng.fttt.persist.MysqlForumRepository;
+import com.laiyesheng.fttt.forum.ForumService;
 
 /**
  * FTTT（五子棋·吞噬等级版）Swing GUI —— 不改后端，只做菜单/渲染/交互。
@@ -39,6 +46,11 @@ public class FtttGui extends JFrame {
     private int winScore = 50;
     private boolean aiThinking = false;
     private boolean gameOverShown = false;
+
+    private final UserService userService = new UserService(new MysqlRepository());
+    private final ForumService forumService = new ForumService(new MysqlForumRepository());
+    private User currentUser = null;
+    private JButton loginBtn;
 
     private final int MARGIN = 24;
     private int cellPx = 30;
@@ -110,7 +122,10 @@ public class FtttGui extends JFrame {
         btns.add(menuBtn("双人模式", e -> openSetup(false)));
         btns.add(menuBtn("人机模式", e -> openSetup(true)));
         btns.add(menuBtn("帮  助", e -> showHelp()));
+        loginBtn = menuBtn("登录 / 注册", e -> openLogin());
+        btns.add(loginBtn);
         btns.add(menuBtn("排 行 榜", e -> showRank()));
+        btns.add(menuBtn("论  坛", e -> openForum()));
         btns.add(menuBtn("退出游戏", e -> System.exit(0)));
         p.add(btns, BorderLayout.SOUTH);
         return p;
@@ -140,10 +155,97 @@ public class FtttGui extends JFrame {
     }
 
     private void showRank() {
-        JOptionPane.showMessageDialog(this,
-            "排行榜功能暂未开放。\n（需要账号与本地存档支持，后续版本补齐。）",
+        var rows = userService.topN(10);
+        if (rows.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "暂无战绩数据。",
+                "排行榜", JOptionPane.INFORMATION_MESSAGE);
+            return;
+        }
+        StringBuilder sb = new StringBuilder("排行榜（前 10 名）\n\n");
+        int rank = 1;
+        for (RankRow r : rows) {
+            sb.append(rank++).append(".  ").append(r.username)
+              .append("   最高分 ").append(r.score).append("\n");
+        }
+        JOptionPane.showMessageDialog(this, sb.toString(),
             "排行榜", JOptionPane.INFORMATION_MESSAGE);
     }
+
+    // ==================================================== 登录 / 注册
+
+    private void openLogin() {
+        if (currentUser != null) {                 // 已登录 → 提供退出
+            int r = JOptionPane.showConfirmDialog(this,
+                "当前已登录：" + currentUser.getUsername() + "\n确定退出登录？",
+                "账户", JOptionPane.OK_CANCEL_OPTION);
+            if (r == JOptionPane.OK_OPTION) {
+                currentUser = null;
+                refreshLoginUI();
+            }
+            return;
+        }
+
+        // 登录页
+        JTextField lu = new JTextField(12);
+        JPasswordField lp = new JPasswordField(12);
+        JPanel loginP = new JPanel(new GridLayout(0, 2, 6, 6));
+        loginP.add(new JLabel("用户名：")); loginP.add(lu);
+        loginP.add(new JLabel("密码："));   loginP.add(lp);
+
+        // 注册页
+        JTextField ru = new JTextField(12);
+        JPasswordField rp = new JPasswordField(12);
+        JPanel regP = new JPanel(new GridLayout(0, 2, 6, 6));
+        regP.add(new JLabel("用户名：")); regP.add(ru);
+        regP.add(new JLabel("密码："));   regP.add(rp);
+
+        JTabbedPane tabs = new JTabbedPane();
+        tabs.add("登录", loginP);
+        tabs.add("注册", regP);
+
+        int res = JOptionPane.showConfirmDialog(this, tabs, "登录 / 注册",
+                JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
+        if (res != JOptionPane.OK_OPTION) return;
+
+        if (tabs.getSelectedIndex() == 1) {        // 注册
+            String name = ru.getText().trim();
+            String pwd = new String(rp.getPassword());
+            if (name.isEmpty() || pwd.isEmpty()) {
+                JOptionPane.showMessageDialog(this, "用户名和密码不能为空。");
+                return;
+            }
+            if (!userService.register(name, pwd)) {
+                JOptionPane.showMessageDialog(this, "用户名已存在。");
+                return;
+            }
+            JOptionPane.showMessageDialog(this, "注册成功，请切到登录页登录。");
+        } else {                                    // 登录
+            String name = lu.getText().trim();
+            String pwd = new String(lp.getPassword());
+            User u = userService.login(name, pwd);
+            if (u == null) {
+                JOptionPane.showMessageDialog(this, "用户名或密码错误。");
+                return;
+            }
+            currentUser = u;
+            refreshLoginUI();
+            JOptionPane.showMessageDialog(this, "欢迎，" + u.getUsername() + "！");
+        }
+    }
+
+    private void refreshLoginUI() {
+        if (loginBtn != null)
+            loginBtn.setText(currentUser == null ? "登录 / 注册" : "已登录：" + currentUser.getUsername());
+    }
+
+    // ==================================================== 论坛
+
+    private void openForum() {
+        new ForumWindow(this, forumService);   // 非模态：打开论坛时仍可返回主菜单
+    }
+
+    /** 供 ForumWindow 读当前登录用户（发帖需先登录） */
+    public User getLoggedInUser() { return currentUser; }
 
     // ==================================================== 开局设置弹窗
 
@@ -401,9 +503,19 @@ public class FtttGui extends JFrame {
 
     private void showGameOver(String msg) {
         gameOverShown = true;
+        persistIfNeeded(game.getWinner());          // 登录用户才落库
         status("游戏结束：" + msg);
         repaintAll();
         JOptionPane.showMessageDialog(this, msg, "游戏结束", JOptionPane.PLAIN_MESSAGE);
+    }
+
+    // 对局结束：若已登录，把本局分数与胜负写回数据库
+    private void persistIfNeeded(Owner winner) {
+        if (currentUser == null || winner == null) return;   // 游客 / 胜负未定 → 不下分
+        Owner me = humanSide;                        // 人机：人类恒为黑；双人简化记黑方视角
+        int score = game.getPlayer(me).getScore();
+        boolean won = (winner == me);
+        userService.recordResult(currentUser.getUserId(), score, won);
     }
 
     // ==================================================== 合法目标高亮 + 提示文案
